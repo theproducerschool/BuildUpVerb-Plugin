@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BuildUp Reverb</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="plugin-title">BuildUp Reverb</h1>
+        
+        <div class="knob-container">
+            <svg class="knob-svg" width="200" height="200" viewBox="0 0 200 200">
+                <!-- Background circle -->
+                <circle cx="100" cy="100" r="80" class="knob-background"/>
+                
+                <!-- Progress arc -->
+                <path class="knob-progress" id="progress-arc" d=""/>
+                
+                <!-- Center circle -->
+                <circle cx="100" cy="100" r="60" class="knob-center"/>
+                
+                <!-- Indicator dot -->
+                <circle cx="100" cy="30" r="5" class="knob-indicator" id="indicator"/>
+                
+                <!-- Value text -->
+                <text x="100" y="110" class="knob-value" id="value-text">0%</text>
+            </svg>
+        </div>
+        
+        <div class="parameter-label">Build Up</div>
+        
+        <div class="info-text">
+            Turn the knob to increase reverb intensity and filter sweep
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html>

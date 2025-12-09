@@ -1,0 +1,125 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+    color: #fff;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.plugin-title {
+    font-size: 24px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+    color: #8888ff;
+    text-shadow: 0 0 20px rgba(136, 136, 255, 0.5);
+}
+
+.knob-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    cursor: pointer;
+    margin: 20px 0;
+}
+
+.knob-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.knob-background {
+    fill: none;
+    stroke: #2a2a4e;
+    stroke-width: 20;
+}
+
+.knob-progress {
+    fill: none;
+    stroke: #8888ff;
+    stroke-width: 20;
+    stroke-linecap: round;
+    transition: stroke 0.3s ease;
+    filter: drop-shadow(0 0 10px rgba(136, 136, 255, 0.8));
+}
+
+.knob-center {
+    fill: #1a1a2e;
+    stroke: #3a3a5e;
+    stroke-width: 2;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+.knob-indicator {
+    fill: #ffffff;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+    transform-origin: 100px 100px;
+    transition: transform 0.1s ease-out;
+}
+
+.knob-value {
+    font-size: 24px;
+    font-weight: 600;
+    fill: #ffffff;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    pointer-events: none;
+}
+
+.parameter-label {
+    font-size: 16px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #8888ff;
+    margin-top: 20px;
+}
+
+.info-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 30px;
+    text-align: center;
+    max-width: 300px;
+}
+
+/* Hover effects */
+.knob-container:hover .knob-progress {
+    stroke: #aaaaff;
+    filter: drop-shadow(0 0 15px rgba(170, 170, 255, 0.9));
+}
+
+.knob-container:active .knob-center {
+    fill: #222244;
+}
+
+/* Animation for value changes */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.value-changing {
+    animation: pulse 0.2s ease-out;
+}
