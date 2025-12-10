@@ -148,7 +148,33 @@ public:
         // New controls
         setupKnob(resonanceKnob, resonanceLabel, "RESONANCE", 0.5, 10.0, 0.01, "", 9.0f);
         setupKnob(widthKnob, widthLabel, "WIDTH", 0.0, 200.0, 0.01, "%", 9.0f);
+        setupKnob(smartPanKnob, smartPanLabel, "SMART PAN", 0.0, 100.0, 0.01, "%", 9.0f);
         setupKnob(gateKnob, gateLabel, "THRESHOLD", 0.0, 100.0, 0.01, "%", 9.0f);
+        setupKnob(driveKnob, driveLabel, "DRIVE", 0.0, 100.0, 0.01, "%", 9.0f);
+        
+        // Delay controls
+        setupKnob(delayMixKnob, delayMixLabel, "DELAY MIX", 0.0, 100.0, 0.01, "%", 9.0f);
+        setupKnob(delayFeedbackKnob, delayFeedbackLabel, "FEEDBACK", 0.0, 90.0, 0.01, "%", 9.0f);
+        
+        // Delay time selector
+        delayTimeCombo.addItem("1/2", 1);
+        delayTimeCombo.addItem("1/3", 2);
+        delayTimeCombo.addItem("1/4", 3);
+        delayTimeCombo.addItem("1/8", 4);
+        delayTimeCombo.addItem("1/16", 5);
+        delayTimeCombo.setSelectedId(3); // Default to 1/4
+        delayTimeCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2a2a2a));
+        delayTimeCombo.setColour(juce::ComboBox::textColourId, juce::Colours::white.withAlpha(0.9f));
+        delayTimeCombo.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3a3a));
+        delayTimeCombo.setColour(juce::ComboBox::arrowColourId, juce::Colours::white.withAlpha(0.7f));
+        delayTimeCombo.setLookAndFeel(&hardwareLookAndFeel);
+        addAndMakeVisible(delayTimeCombo);
+        
+        delayTimeLabel.setText("TIME", juce::dontSendNotification);
+        delayTimeLabel.setJustificationType(juce::Justification::centred);
+        delayTimeLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.9f));
+        delayTimeLabel.setFont(juce::Font(9.0f));
+        addAndMakeVisible(delayTimeLabel);
         
         // Noise type selector
         noiseTypeCombo.addItem("White", 1);
@@ -221,7 +247,7 @@ public:
         // Filter type selector
         filterTypeCombo.addItem("High Pass", 1);
         filterTypeCombo.addItem("Low Pass", 2);
-        filterTypeCombo.addItem("Band Pass", 3);
+        filterTypeCombo.addItem("Dual Sweep", 3);
         filterTypeCombo.setSelectedId(1);
         filterTypeCombo.onChange = [this] { filterTypeChanged(); };
         filterTypeCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2a2a2a));
@@ -231,11 +257,30 @@ public:
         filterTypeCombo.setLookAndFeel(&hardwareLookAndFeel);
         addAndMakeVisible(filterTypeCombo);
         
-        filterTypeLabel.setText("FILTER TYPE", juce::dontSendNotification);
+        filterTypeLabel.setText("TYPE", juce::dontSendNotification);
         filterTypeLabel.setJustificationType(juce::Justification::centred);
         filterTypeLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.9f));
         filterTypeLabel.setFont(juce::Font(9.0f));
         addAndMakeVisible(filterTypeLabel);
+        
+        // Filter slope selector
+        filterSlopeCombo.addItem("6 dB/oct", 1);
+        filterSlopeCombo.addItem("12 dB/oct", 2);
+        filterSlopeCombo.addItem("18 dB/oct", 3);
+        filterSlopeCombo.addItem("24 dB/oct", 4);
+        filterSlopeCombo.setSelectedId(2); // Default to 12 dB/oct
+        filterSlopeCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2a2a2a));
+        filterSlopeCombo.setColour(juce::ComboBox::textColourId, juce::Colours::white.withAlpha(0.9f));
+        filterSlopeCombo.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3a3a));
+        filterSlopeCombo.setColour(juce::ComboBox::arrowColourId, juce::Colours::white.withAlpha(0.7f));
+        filterSlopeCombo.setLookAndFeel(&hardwareLookAndFeel);
+        addAndMakeVisible(filterSlopeCombo);
+        
+        filterSlopeLabel.setText("SLOPE", juce::dontSendNotification);
+        filterSlopeLabel.setJustificationType(juce::Justification::centred);
+        filterSlopeLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.9f));
+        filterSlopeLabel.setFont(juce::Font(9.0f));
+        addAndMakeVisible(filterSlopeLabel);
         
         // Section labels
         filterSectionLabel.setText("FILTER", juce::dontSendNotification);
@@ -261,6 +306,12 @@ public:
         riserSectionLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.9f));
         riserSectionLabel.setFont(juce::Font(13.0f, juce::Font::bold));
         addAndMakeVisible(riserSectionLabel);
+        
+        delaySectionLabel.setText("DELAY", juce::dontSendNotification);
+        delaySectionLabel.setJustificationType(juce::Justification::centred);
+        delaySectionLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.9f));
+        delaySectionLabel.setFont(juce::Font(13.0f, juce::Font::bold));
+        addAndMakeVisible(delaySectionLabel);
         
         // Attach to parameters
         buildUpAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -289,8 +340,20 @@ public:
             processor.parameters, "filterResonance", resonanceKnob);
         widthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor.parameters, "stereoWidth", widthKnob);
+        smartPanAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processor.parameters, "smartPan", smartPanKnob);
         gateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor.parameters, "noiseGate", gateKnob);
+        driveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processor.parameters, "filterDrive", driveKnob);
+        delayMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processor.parameters, "delayMix", delayMixKnob);
+        delayFeedbackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processor.parameters, "delayFeedback", delayFeedbackKnob);
+        delayTimeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+            processor.parameters, "delayTime", delayTimeCombo);
+        filterSlopeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+            processor.parameters, "filterSlope", filterSlopeCombo);
         autoGainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
             processor.parameters, "autoGain", autoGainButton);
         macroModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
@@ -341,6 +404,7 @@ public:
         prevButton.setLookAndFeel(nullptr);
         nextButton.setLookAndFeel(nullptr);
         filterTypeCombo.setLookAndFeel(nullptr);
+        filterSlopeCombo.setLookAndFeel(nullptr);
         noiseTypeCombo.setLookAndFeel(nullptr);
         riserTypeCombo.setLookAndFeel(nullptr);
         autoGainButton.setLookAndFeel(nullptr);
@@ -404,7 +468,7 @@ public:
         contentArea.removeFromLeft(310); // Skip main knob area
         
         int sectionWidth = (contentArea.getWidth() - 20) / 2;
-        int sectionHeight = 160;
+        int sectionHeight = 200;
         
         // Top row section backgrounds
         auto topRowArea = contentArea.removeFromTop(sectionHeight);
@@ -537,31 +601,42 @@ public:
         // Add spacing between columns
         contentBounds.removeFromLeft(30);
         
-        // Right side - organized in 2x2 grid of sections
+        // Right side - organized in 2x2 grid of sections + delay section
         auto rightSide = contentBounds;
         int sectionWidth = (rightSide.getWidth() - 20) / 2; // Split remaining width, with gap
-        int sectionHeight = 160;
+        int sectionHeight = 180; // Reduced to make room for delay section
         int knobSize = 60;
         
         // Top row
         auto topRow = rightSide.removeFromTop(sectionHeight);
         
-        // Filter Section - top left
+        // Filter Section - top left (expanded for more controls)
         auto filterSection = topRow.removeFromLeft(sectionWidth);
-        filterSectionLabel.setBounds(filterSection.removeFromTop(25));
-        auto filterRow = filterSection.removeFromTop(90);
+        filterSectionLabel.setBounds(filterSection.removeFromTop(22));
+        auto filterRow1 = filterSection.removeFromTop(75);
         
-        // Filter knob and resonance
-        auto filterKnobArea = filterRow.removeFromLeft(80);
-        layoutKnob(filterKnob, filterLabel, filterKnobArea, knobSize);
+        // Filter knob and resonance on first row
+        int smallKnobSize = 50;
+        auto filterKnobArea = filterRow1.removeFromLeft(65);
+        layoutKnob(filterKnob, filterLabel, filterKnobArea, smallKnobSize);
         
-        auto resonanceArea = filterRow.removeFromLeft(80);
-        layoutKnob(resonanceKnob, resonanceLabel, resonanceArea, knobSize);
+        auto resonanceArea = filterRow1.removeFromLeft(65);
+        layoutKnob(resonanceKnob, resonanceLabel, resonanceArea, smallKnobSize);
         
-        // Filter type dropdown
-        auto filterTypeArea = filterSection.reduced(5, 0);
-        filterTypeLabel.setBounds(filterTypeArea.removeFromBottom(15));
-        filterTypeCombo.setBounds(filterTypeArea);
+        // Drive knob
+        auto driveArea = filterRow1.removeFromLeft(65);
+        layoutKnob(driveKnob, driveLabel, driveArea, smallKnobSize);
+        
+        // Filter type dropdown - full width
+        auto filterTypeRow = filterSection.removeFromTop(35).reduced(3, 0);
+        filterTypeLabel.setBounds(filterTypeRow.removeFromBottom(12));
+        filterTypeCombo.setBounds(filterTypeRow);
+        
+        // Filter slope as toggle buttons below
+        filterSection.removeFromTop(5);
+        auto filterSlopeRow = filterSection.removeFromTop(35).reduced(3, 0);
+        filterSlopeLabel.setBounds(filterSlopeRow.removeFromBottom(12));
+        filterSlopeCombo.setBounds(filterSlopeRow);
         
         // Add gap between sections
         topRow.removeFromLeft(20);
@@ -621,10 +696,36 @@ public:
         riserTypeLabel.setBounds(riserTypeArea.removeFromBottom(15));
         riserTypeCombo.setBounds(riserTypeArea);
         
+        // Add spacing before delay section
+        rightSide.removeFromTop(30);
+        
+        // Delay Section - third row, spanning full width
+        auto delaySection = rightSide.removeFromTop(sectionHeight);
+        delaySectionLabel.setBounds(delaySection.removeFromTop(25));
+        auto delayRow = delaySection.removeFromTop(90);
+        
+        // Delay mix and feedback knobs
+        auto delayMixArea = delayRow.removeFromLeft(80);
+        layoutKnob(delayMixKnob, delayMixLabel, delayMixArea, knobSize);
+        
+        auto delayFeedbackArea = delayRow.removeFromLeft(80);
+        layoutKnob(delayFeedbackKnob, delayFeedbackLabel, delayFeedbackArea, knobSize);
+        
+        // Delay time dropdown
+        delayRow.removeFromLeft(20); // spacing
+        auto delayTimeArea = delayRow.removeFromLeft(120);
+        delayTimeLabel.setBounds(delayTimeArea.removeFromBottom(15));
+        delayTimeCombo.setBounds(delayTimeArea);
+        
         // Stereo Width knob - positioned below left column
         leftColumn.removeFromTop(20); // spacing
         auto widthArea = leftColumn.removeFromTop(100);
         layoutKnob(widthKnob, widthLabel, widthArea, mediumKnobSize);
+        
+        // Smart Pan knob - positioned below width
+        leftColumn.removeFromTop(10); // spacing
+        auto smartPanArea = leftColumn.removeFromTop(100);
+        layoutKnob(smartPanKnob, smartPanLabel, smartPanArea, mediumKnobSize);
         
         // Bottom controls area
         auto bottomControls = contentBounds.removeFromBottom(60);
@@ -749,11 +850,27 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> riserTypeAttachment;
     
     // New controls
-    juce::Slider resonanceKnob, widthKnob, gateKnob;
-    juce::Label resonanceLabel, widthLabel, gateLabel;
+    juce::Slider resonanceKnob, widthKnob, gateKnob, driveKnob, smartPanKnob;
+    juce::Label resonanceLabel, widthLabel, gateLabel, driveLabel, smartPanLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> resonanceAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> widthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gateAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> driveAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> smartPanAttachment;
+    
+    // Delay controls
+    juce::Slider delayMixKnob, delayFeedbackKnob;
+    juce::Label delayMixLabel, delayFeedbackLabel;
+    juce::ComboBox delayTimeCombo;
+    juce::Label delayTimeLabel, delaySectionLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> delayMixAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> delayFeedbackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> delayTimeAttachment;
+    
+    // Filter slope
+    juce::ComboBox filterSlopeCombo;
+    juce::Label filterSlopeLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filterSlopeAttachment;
     
     juce::ToggleButton autoGainButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> autoGainAttachment;
@@ -778,10 +895,11 @@ BuildUpVerbAudioProcessorEditor::BuildUpVerbAudioProcessorEditor (BuildUpVerbAud
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     // Use native JUCE components instead of WebView
-    auto* knobComp = new KnobComponent(audioProcessor);
-    addAndMakeVisible(knobComp);
+    knobComp = std::make_unique<KnobComponent>(audioProcessor);
+    addAndMakeVisible(knobComp.get());
+    knobComp->setBounds(0, 0, 900, 750);
     
-    setSize (900, 600);  // Wider layout for sections
+    setSize (900, 750);  // Wider layout for sections with delay
     setResizable (false, false);
 }
 

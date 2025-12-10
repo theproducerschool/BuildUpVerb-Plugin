@@ -5,8 +5,8 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(145deg, #12121c 0%, #1a1a2e 50%, #0d0d15 100%);
     color: #fff;
     width: 100vw;
     height: 100vh;
@@ -23,16 +23,17 @@ body {
     justify-content: center;
     align-items: center;
     padding: 20px;
+    position: relative;
 }
 
 .plugin-title {
-    font-size: 24px;
-    font-weight: 300;
-    letter-spacing: 2px;
-    margin-bottom: 30px;
+    font-size: 22px;
+    font-weight: 200;
+    letter-spacing: 4px;
+    margin-bottom: 25px;
     text-transform: uppercase;
-    color: #8888ff;
-    text-shadow: 0 0 20px rgba(136, 136, 255, 0.5);
+    color: #7b7bff;
+    text-shadow: 0 0 30px rgba(123, 123, 255, 0.4);
 }
 
 .knob-container {
@@ -40,7 +41,7 @@ body {
     width: 200px;
     height: 200px;
     cursor: pointer;
-    margin: 20px 0;
+    margin: 15px 0;
 }
 
 .knob-svg {
@@ -50,36 +51,36 @@ body {
 
 .knob-background {
     fill: none;
-    stroke: #2a2a4e;
-    stroke-width: 20;
+    stroke: #252538;
+    stroke-width: 18;
 }
 
 .knob-progress {
     fill: none;
     stroke: #8888ff;
-    stroke-width: 20;
+    stroke-width: 18;
     stroke-linecap: round;
     transition: stroke 0.3s ease;
-    filter: drop-shadow(0 0 10px rgba(136, 136, 255, 0.8));
+    filter: drop-shadow(0 0 12px rgba(136, 136, 255, 0.7));
 }
 
 .knob-center {
-    fill: #1a1a2e;
-    stroke: #3a3a5e;
+    fill: #16162a;
+    stroke: #2d2d4a;
     stroke-width: 2;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.6));
 }
 
 .knob-indicator {
     fill: #ffffff;
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9));
     transform-origin: 100px 100px;
     transition: transform 0.1s ease-out;
 }
 
 .knob-value {
     font-size: 24px;
-    font-weight: 600;
+    font-weight: 500;
     fill: #ffffff;
     text-anchor: middle;
     dominant-baseline: middle;
@@ -87,30 +88,260 @@ body {
 }
 
 .parameter-label {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 400;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #8888ff;
-    margin-top: 20px;
+    letter-spacing: 2px;
+    color: #7b7bff;
+    margin-top: 15px;
+}
+
+/* Filter Section */
+.filter-section {
+    margin-top: 25px;
+    padding: 12px 20px;
+    background: linear-gradient(145deg, rgba(40, 40, 70, 0.4), rgba(20, 20, 40, 0.6));
+    border: 1px solid rgba(123, 123, 255, 0.15);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-section:hover {
+    background: linear-gradient(145deg, rgba(50, 50, 85, 0.5), rgba(30, 30, 55, 0.7));
+    border-color: rgba(123, 123, 255, 0.3);
+    box-shadow: 0 0 20px rgba(123, 123, 255, 0.15);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #9999cc;
+}
+
+.settings-btn {
+    background: rgba(123, 123, 255, 0.15);
+    border: 1px solid rgba(123, 123, 255, 0.2);
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    color: #9999cc;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-btn:hover {
+    background: rgba(123, 123, 255, 0.25);
+    color: #bbbbff;
+    transform: rotate(45deg);
 }
 
 .info-text {
-    font-size: 12px;
-    color: #666;
-    margin-top: 30px;
+    font-size: 11px;
+    color: #555;
+    margin-top: 25px;
     text-align: center;
-    max-width: 300px;
+    max-width: 280px;
+    letter-spacing: 0.3px;
 }
 
 /* Hover effects */
 .knob-container:hover .knob-progress {
-    stroke: #aaaaff;
-    filter: drop-shadow(0 0 15px rgba(170, 170, 255, 0.9));
+    stroke: #9a9aff;
+    filter: drop-shadow(0 0 18px rgba(154, 154, 255, 0.85));
 }
 
 .knob-container:active .knob-center {
-    fill: #222244;
+    fill: #1e1e38;
+}
+
+/* Popup Overlay */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 1000;
+}
+
+.popup-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.popup-panel {
+    background: linear-gradient(160deg, #1e1e35 0%, #141428 100%);
+    border: 1px solid rgba(123, 123, 255, 0.2);
+    border-radius: 16px;
+    padding: 0;
+    min-width: 280px;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(123, 123, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.popup-overlay.active .popup-panel {
+    transform: scale(1) translateY(0);
+}
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(123, 123, 255, 0.1);
+}
+
+.popup-header h2 {
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #9999cc;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+    color: #ff6b6b;
+}
+
+.popup-content {
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #888;
+}
+
+/* Mini Knob for Drive */
+.mini-knob-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    cursor: pointer;
+}
+
+.mini-knob-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.mini-knob-bg {
+    fill: none;
+    stroke: #252538;
+    stroke-width: 8;
+}
+
+.mini-knob-progress {
+    fill: none;
+    stroke: #ff7b5c;
+    stroke-width: 8;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 8px rgba(255, 123, 92, 0.6));
+}
+
+.mini-knob-center {
+    fill: #16162a;
+    stroke: #2d2d4a;
+    stroke-width: 1.5;
+}
+
+.mini-knob-indicator {
+    fill: #ffffff;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+}
+
+.mini-knob-value {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: 500;
+    color: #ff7b5c;
+}
+
+/* Slope Selector */
+.slope-selector {
+    display: flex;
+    gap: 6px;
+    background: rgba(20, 20, 35, 0.6);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(123, 123, 255, 0.1);
+}
+
+.slope-btn {
+    background: transparent;
+    border: none;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #666;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.slope-btn:hover {
+    color: #999;
+    background: rgba(123, 123, 255, 0.1);
+}
+
+.slope-btn.active {
+    background: linear-gradient(145deg, #5b5bcc, #4a4aaa);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(91, 91, 204, 0.4);
 }
 
 /* Animation for value changes */
@@ -122,4 +353,16 @@ body {
 
 .value-changing {
     animation: pulse 0.2s ease-out;
+}
+
+/* Popup slide animation */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

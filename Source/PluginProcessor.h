@@ -62,11 +62,19 @@ private:
     FreeverbWrapper freeverb;
     juce::dsp::StateVariableTPTFilter<float> highPassFilter;
     juce::dsp::StateVariableTPTFilter<float> lowPassFilter; // For dual-filter automation
+    // Additional filter stages for steeper slopes (6dB = 1 stage, 12dB = 2, 18dB = 3, 24dB = 4)
+    juce::dsp::StateVariableTPTFilter<float> highPassFilter2;
+    juce::dsp::StateVariableTPTFilter<float> highPassFilter3;
+    juce::dsp::StateVariableTPTFilter<float> highPassFilter4;
+    juce::dsp::StateVariableTPTFilter<float> lowPassFilter2;
+    juce::dsp::StateVariableTPTFilter<float> lowPassFilter3;
+    juce::dsp::StateVariableTPTFilter<float> lowPassFilter4;
     juce::dsp::ProcessSpec spec;
     juce::Random random;
     
     float previousBuildUp = 0.0f;
     mutable float currentNoiseLevel = 0.0f;
+    mutable float smoothedNoiseLevel = 0.0f;  // Smoothed noise level to prevent clicks
     int currentPreset = 0;
     
     // Tremolo
@@ -105,6 +113,12 @@ private:
     // Envelope follower for intelligent noise gating
     mutable float envelopeLevel = 0.0f;
     mutable float noiseGateThreshold = 0.001f; // -60dB threshold
+    
+    // Delay processing
+    juce::AudioBuffer<float> delayBufferL, delayBufferR;
+    int delayWritePos = 0;
+    float currentBPM = 120.0f;
+    int delaySampleLength = 0;
     
     void updateDSPFromParameters();
     void applyMacroControl(float macroValue, int mode) const;

@@ -4,6 +4,8 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 
+class KnobComponent;
+
 class BuildUpVerbAudioProcessorEditor : public juce::AudioProcessorEditor,
                                        private juce::Timer
 {
@@ -18,6 +20,7 @@ private:
     void timerCallback() override;
     
     BuildUpVerbAudioProcessor& audioProcessor;
+    std::unique_ptr<KnobComponent> knobComp;
     
     void initialiseWebView();
     void sendParameterUpdate();

@@ -1,5 +1,16 @@
 cmake_minimum_required(VERSION 3.15)
 
+project(BuildUpVerb VERSION 1.0.0)
+
+# Fetch JUCE
+include(FetchContent)
+FetchContent_Declare(
+    JUCE
+    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+    GIT_TAG 8.0.4
+)
+FetchContent_MakeAvailable(JUCE)
+
 # JUCE plugin configuration
 juce_add_plugin(BuildUpVerb
     COMPANY_NAME "Plugin Freedom System"
