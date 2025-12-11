@@ -85,6 +85,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout BuildUpVerbAudioProcessor::c
                                                              juce::NormalisableRange<float> (0.0f, 100.0f, 0.01f),
                                                              50.0f));
     
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("vocoderBrightness",
+                                                             "Vocoder Brightness",
+                                                             juce::NormalisableRange<float> (0.0f, 100.0f, 0.01f),
+                                                             50.0f)); // Default to balanced
+    
     layout.add (std::make_unique<juce::AudioParameterFloat> ("tremoloRate",
                                                              "Tremolo Rate",
                                                              juce::NormalisableRange<float> (0.1f, 20.0f, 0.01f, 0.5f),
@@ -469,13 +474,14 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         // Use raw buildUpNorm instead of smoothedBuildUp to prevent modulation
         float vocoderGain = buildUpNorm * noiseAmountNorm;
         float vocoderReleaseAmount = *parameters.getRawParameterValue ("vocoderRelease") / 100.0f;
+        float vocoderBrightness = *parameters.getRawParameterValue ("vocoderBrightness") / 100.0f;
         
         // Create buffer for vocoder output
         juce::AudioBuffer<float> noiseBuffer(buffer.getNumChannels(), buffer.getNumSamples());
         noiseBuffer.clear();
         
         // Process vocoder - use filterbank for 4-band like Ableton
-        processVocoderFilterbank(buffer, noiseBuffer, vocoderGain, vocoderReleaseAmount);
+        processVocoderFilterbank(buffer, noiseBuffer, vocoderGain, vocoderReleaseAmount, vocoderBrightness);
         
         // BYPASS FILTERING FOR NOW TO TEST IF THIS IS THE ISSUE
         // The filters might be causing the ringing with high resonance

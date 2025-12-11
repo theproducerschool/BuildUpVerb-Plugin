@@ -151,6 +151,7 @@ public:
         setupKnob(smartPanKnob, smartPanLabel, "SMART PAN", 0.0, 100.0, 0.01, "%", 9.0f);
         setupKnob(gateKnob, gateLabel, "THRESHOLD", 0.0, 100.0, 0.01, "%", 9.0f);
         setupKnob(vocoderReleaseKnob, vocoderReleaseLabel, "VOC RELEASE", 0.0, 100.0, 0.01, "%", 9.0f);
+        setupKnob(vocoderBrightnessKnob, vocoderBrightnessLabel, "BRIGHTNESS", 0.0, 100.0, 0.01, "%", 9.0f);
         setupKnob(driveKnob, driveLabel, "DRIVE", 0.0, 100.0, 0.01, "%", 9.0f);
         
         // Delay controls
@@ -334,6 +335,8 @@ public:
             processor.parameters, "noiseGate", gateKnob);
         vocoderReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor.parameters, "vocoderRelease", vocoderReleaseKnob);
+        vocoderBrightnessAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processor.parameters, "vocoderBrightness", vocoderBrightnessKnob);
         driveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor.parameters, "filterDrive", driveKnob);
         delayMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -645,6 +648,11 @@ public:
         auto vocoderReleaseArea = noiseRow.removeFromLeft(65);
         layoutKnob(vocoderReleaseKnob, vocoderReleaseLabel, vocoderReleaseArea, smallKnobSize);
         
+        noiseRow.removeFromLeft(5); // Small spacing
+        
+        auto vocoderBrightnessArea = noiseRow.removeFromLeft(65);
+        layoutKnob(vocoderBrightnessKnob, vocoderBrightnessLabel, vocoderBrightnessArea, smallKnobSize);
+        
         // Vocoder label
         auto vocoderArea = noiseSection.reduced(5, 0);
         vocoderLabel.setBounds(vocoderArea);
@@ -830,12 +838,13 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> riserTypeAttachment;
     
     // New controls
-    juce::Slider resonanceKnob, widthKnob, gateKnob, vocoderReleaseKnob, driveKnob, smartPanKnob;
-    juce::Label resonanceLabel, widthLabel, gateLabel, vocoderReleaseLabel, driveLabel, smartPanLabel;
+    juce::Slider resonanceKnob, widthKnob, gateKnob, vocoderReleaseKnob, vocoderBrightnessKnob, driveKnob, smartPanKnob;
+    juce::Label resonanceLabel, widthLabel, gateLabel, vocoderReleaseLabel, vocoderBrightnessLabel, driveLabel, smartPanLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> resonanceAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> widthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gateAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vocoderReleaseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vocoderBrightnessAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> driveAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> smartPanAttachment;
     

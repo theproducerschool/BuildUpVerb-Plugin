@@ -1,14 +1,14 @@
 # BuildUp Reverb - Build Notes
 
-## Current Version: 1.3.1
+## Current Version: 1.3.2
 **Date**: December 11, 2024
 
 ### Recent Changes
-- Added body in high-mids while keeping crispy highs
-- Bands: 1.5kHz, 3kHz, 6kHz, 12kHz (better balance)
-- 80% high-passed noise (was 90%) for more body
-- Gains: 2x, 3x, 6x, 12x (progressive boost)
-- Wider bands in low-mids for fuller sound
+- Added BRIGHTNESS knob to vocoder (0-100%)
+- Controls frequency balance from warm to bright
+- Morphs band gains dynamically
+- Adjusts high-pass filter amount
+- Variable high-shelf emphasis based on setting
 
 ### Known Issues
 - Persistent "fast LFO/ringing" artifact even with constant noise output
@@ -23,6 +23,13 @@
 5. Install AU: `cp -R BuildUpVerb_artefacts/Release/AU/BuildUp\ Reverb.component ~/Library/Audio/Plug-Ins/Components/`
 
 ### Version History
+
+#### v1.3.2 (2024-12-11)
+- Implemented brightness/character control
+- 0% = Warm/vintage vocoder sound
+- 50% = Balanced (current default)
+- 100% = Super bright/airy
+- User can now adjust vocoder tone to taste
 
 #### v1.3.1 (2024-12-11)
 - User: "highs are good, noise needs body in high-mids"

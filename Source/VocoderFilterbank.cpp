@@ -92,7 +92,8 @@ private:
 void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float>& buffer, 
                                                         juce::AudioBuffer<float>& noiseBuffer,
                                                         float vocoderGain,
-                                                        float vocoderRelease)
+                                                        float vocoderRelease,
+                                                        float vocoderBrightness)
 {
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
@@ -178,13 +179,15 @@ void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float
             // MOSTLY raw white noise (90% mix) for maximum brightness
             float rawNoise = (random.nextFloat() - 0.5f) * 2.0f;
             
-            // Gentler high-pass to keep some body
+            // Variable high-pass based on brightness
             static float hpState[2] = {0.0f, 0.0f};
-            float hpCutoff = 0.15f; // Less aggressive high-pass
+            float hpCutoff = 0.05f + vocoderBrightness * 0.25f; // More HP when brighter
             hpState[channel] += (rawNoise - hpState[channel]) * hpCutoff;
             float highpassedNoise = rawNoise - hpState[channel];
             
-            noise = noise * 0.2f + highpassedNoise * 0.8f; // 80% high-passed
+            // More high-passed noise when brighter
+            float hpMix = 0.5f + vocoderBrightness * 0.4f; // 50-90% based on brightness
+            noise = noise * (1.0f - hpMix) + highpassedNoise * hpMix;
             
             // Filter the SAME noise through all synthesis bands and modulate
             float output = 0.0f;
@@ -194,12 +197,19 @@ void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float
                 float filteredNoise = synthesisBands[channel][band].processSample(0, noise);
                 
                 // Modulate filtered noise with the envelope from analysis
-                // High-mids body + crispy highs
+                // Dynamic gain based on brightness parameter
                 float bandGain = 1.0f;
-                if (band == 0) bandGain = 2.0f;   // Good body at 1.5kHz
-                if (band == 1) bandGain = 3.0f;   // More body at 3kHz  
-                if (band == 2) bandGain = 6.0f;   // Strong 6kHz presence
-                if (band == 3) bandGain = 12.0f;  // Still massive highs at 12kHz
+                
+                // Brightness morphs between warm and bright settings
+                if (band == 0) // 1.5kHz
+                    bandGain = 4.0f * (1.0f - vocoderBrightness) + 0.5f * vocoderBrightness;
+                if (band == 1) // 3kHz
+                    bandGain = 4.0f * (1.0f - vocoderBrightness) + 1.0f * vocoderBrightness;
+                if (band == 2) // 6kHz
+                    bandGain = 3.0f * (1.0f - vocoderBrightness) + 10.0f * vocoderBrightness;
+                if (band == 3) // 12kHz
+                    bandGain = 2.0f * (1.0f - vocoderBrightness) + 20.0f * vocoderBrightness;
+                    
                 output += filteredNoise * bandEnvelopes[band] * bandGain;
             }
             
@@ -214,8 +224,9 @@ void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float
             float brightened = outputSmooth[channel] + (outputSmooth[channel] - highShelf1[channel]) * 1.0f;
             highShelf1[channel] = outputSmooth[channel];
             
-            // Second emphasis stage for EXTREME brightness
-            float superBright = brightened + (brightened - highShelf2[channel]) * 0.8f;
+            // Second emphasis stage - variable based on brightness
+            float emphasisAmount = vocoderBrightness * 1.2f; // 0-120% emphasis
+            float superBright = brightened + (brightened - highShelf2[channel]) * emphasisAmount;
             highShelf2[channel] = brightened;
             
             outputData[sample] = superBright * vocoderGain * 2.0f;

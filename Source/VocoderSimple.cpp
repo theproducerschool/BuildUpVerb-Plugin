@@ -7,7 +7,8 @@
 void BuildUpVerbAudioProcessor::processVocoderSimple(juce::AudioBuffer<float>& buffer, 
                                                     juce::AudioBuffer<float>& noiseBuffer,
                                                     float vocoderGain,
-                                                    float vocoderRelease)
+                                                    float vocoderRelease,
+                                                    float vocoderBrightness)
 {
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();

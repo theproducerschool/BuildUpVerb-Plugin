@@ -64,25 +64,29 @@ public:
     void processVocoder(juce::AudioBuffer<float>& buffer, 
                        juce::AudioBuffer<float>& noiseBuffer,
                        float vocoderGain,
-                       float vocoderRelease);
+                       float vocoderRelease,
+                       float vocoderBrightness = 0.5f);
                        
     // Alternative filterbank vocoder
     void processVocoderFilterbank(juce::AudioBuffer<float>& buffer, 
                                  juce::AudioBuffer<float>& noiseBuffer,
                                  float vocoderGain,
-                                 float vocoderRelease);
+                                 float vocoderRelease,
+                                 float vocoderBrightness = 0.5f);
                                  
     // Simple vocoder for debugging
     void processVocoderSimple(juce::AudioBuffer<float>& buffer, 
                              juce::AudioBuffer<float>& noiseBuffer,
                              float vocoderGain,
-                             float vocoderRelease);
+                             float vocoderRelease,
+                             float vocoderBrightness = 0.5f);
                              
     // Gate-based vocoder (no envelope following)
     void processVocoderGated(juce::AudioBuffer<float>& buffer, 
                             juce::AudioBuffer<float>& noiseBuffer,
                             float vocoderGain,
-                            float vocoderRelease);
+                            float vocoderRelease,
+                            float vocoderBrightness = 0.5f);
     
 private:
     FreeverbWrapper freeverb;
