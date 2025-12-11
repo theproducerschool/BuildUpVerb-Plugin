@@ -3,6 +3,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "FreeverbWrapper.h"
+#include <complex>
+#include <array>
 
 class BuildUpVerbAudioProcessor : public juce::AudioProcessor
 {
@@ -58,6 +60,30 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
     
+    // Vocoder processing
+    void processVocoder(juce::AudioBuffer<float>& buffer, 
+                       juce::AudioBuffer<float>& noiseBuffer,
+                       float vocoderGain,
+                       float vocoderRelease);
+                       
+    // Alternative filterbank vocoder
+    void processVocoderFilterbank(juce::AudioBuffer<float>& buffer, 
+                                 juce::AudioBuffer<float>& noiseBuffer,
+                                 float vocoderGain,
+                                 float vocoderRelease);
+                                 
+    // Simple vocoder for debugging
+    void processVocoderSimple(juce::AudioBuffer<float>& buffer, 
+                             juce::AudioBuffer<float>& noiseBuffer,
+                             float vocoderGain,
+                             float vocoderRelease);
+                             
+    // Gate-based vocoder (no envelope following)
+    void processVocoderGated(juce::AudioBuffer<float>& buffer, 
+                            juce::AudioBuffer<float>& noiseBuffer,
+                            float vocoderGain,
+                            float vocoderRelease);
+    
 private:
     FreeverbWrapper freeverb;
     juce::dsp::StateVariableTPTFilter<float> highPassFilter;
@@ -73,8 +99,10 @@ private:
     juce::Random random;
     
     float previousBuildUp = 0.0f;
+    mutable float smoothedBuildUp = 0.0f;  // Smoothed build up value
     mutable float currentNoiseLevel = 0.0f;
     mutable float smoothedNoiseLevel = 0.0f;  // Smoothed noise level to prevent clicks
+    mutable float smoothedVocoderLevel = 0.0f;  // Extra smoothing for vocoder
     int currentPreset = 0;
     
     // Tremolo
@@ -93,8 +121,29 @@ private:
     juce::dsp::StateVariableTPTFilter<float> noiseFilter;
     float lastBuildUp = 0.0f;
     
-    // Pink noise filter
-    mutable float pinkNoiseState[3] = {0.0f, 0.0f, 0.0f};
+    // FFT for vocoder
+    static constexpr int fftOrder = 10; // 1024 samples
+    static constexpr int fftSize = 1 << fftOrder;
+    static constexpr int numBands = 4; // 4 bands like Ableton
+    
+    juce::dsp::FFT forwardFFT;
+    std::vector<float> fftData;
+    std::vector<float> window;
+    std::vector<std::complex<float>> frequencyData;
+    std::vector<float> magnitudes;
+    std::vector<float> phases;
+    std::vector<float> bandLevels;
+    std::vector<float> smoothedBandLevels;
+    int fftPos = 0;
+    int hopSize = fftSize / 4; // 75% overlap for smoother output
+    int hopCounter = 0;
+    std::vector<float> overlapBuffer;
+    std::vector<float> prevPhases;
+    std::vector<float> inputBuffer;  // Circular buffer for input
+    std::vector<float> outputBuffer; // Circular buffer for output
+    std::array<int, 2> inputWritePos = {0, 0};  // Per-channel positions
+    std::array<int, 2> outputReadPos = {0, 0};  // Per-channel positions  
+    std::array<int, 2> channelHopCounter = {0, 0}; // Per-channel hop counter
     
     // Stereo width
     float widthDelayL = 0.0f;
@@ -119,6 +168,9 @@ private:
     int delayWritePos = 0;
     float currentBPM = 120.0f;
     int delaySampleLength = 0;
+    
+    juce::AudioBuffer<float> fftInputBuffer;
+    juce::AudioBuffer<float> fftOutputBuffer;
     
     void updateDSPFromParameters();
     void applyMacroControl(float macroValue, int mode) const;

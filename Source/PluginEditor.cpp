@@ -150,6 +150,7 @@ public:
         setupKnob(widthKnob, widthLabel, "WIDTH", 0.0, 200.0, 0.01, "%", 9.0f);
         setupKnob(smartPanKnob, smartPanLabel, "SMART PAN", 0.0, 100.0, 0.01, "%", 9.0f);
         setupKnob(gateKnob, gateLabel, "THRESHOLD", 0.0, 100.0, 0.01, "%", 9.0f);
+        setupKnob(vocoderReleaseKnob, vocoderReleaseLabel, "VOC RELEASE", 0.0, 100.0, 0.01, "%", 9.0f);
         setupKnob(driveKnob, driveLabel, "DRIVE", 0.0, 100.0, 0.01, "%", 9.0f);
         
         // Delay controls
@@ -176,24 +177,12 @@ public:
         delayTimeLabel.setFont(juce::Font(9.0f));
         addAndMakeVisible(delayTimeLabel);
         
-        // Noise type selector
-        noiseTypeCombo.addItem("White", 1);
-        noiseTypeCombo.addItem("Pink", 2);
-        noiseTypeCombo.addItem("Vinyl", 3);
-        noiseTypeCombo.setSelectedId(1);
-        noiseTypeCombo.onChange = [this] { noiseTypeChanged(); };
-        noiseTypeCombo.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2a2a2a));
-        noiseTypeCombo.setColour(juce::ComboBox::textColourId, juce::Colours::white.withAlpha(0.9f));
-        noiseTypeCombo.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff3a3a3a));
-        noiseTypeCombo.setColour(juce::ComboBox::arrowColourId, juce::Colours::white.withAlpha(0.7f));
-        noiseTypeCombo.setLookAndFeel(&hardwareLookAndFeel);
-        addAndMakeVisible(noiseTypeCombo);
-        
-        noiseTypeLabel.setText("TYPE", juce::dontSendNotification);
-        noiseTypeLabel.setJustificationType(juce::Justification::centred);
-        noiseTypeLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.9f));
-        noiseTypeLabel.setFont(juce::Font(9.0f));
-        addAndMakeVisible(noiseTypeLabel);
+        // Vocoder label instead of combo box
+        vocoderLabel.setText("4-BAND VOCODER", juce::dontSendNotification);
+        vocoderLabel.setJustificationType(juce::Justification::centred);
+        vocoderLabel.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.9f));
+        vocoderLabel.setFont(juce::Font(12.0f, juce::Font::bold));
+        addAndMakeVisible(vocoderLabel);
         
         // Riser type selector
         riserTypeCombo.addItem("Sine", 1);
@@ -332,8 +321,7 @@ public:
             processor.parameters, "riserAmount", riserKnob);
         riserReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor.parameters, "riserRelease", riserReleaseKnob);
-        noiseTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-            processor.parameters, "noiseType", noiseTypeCombo);
+        // No noise type attachment needed anymore
         riserTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
             processor.parameters, "riserType", riserTypeCombo);
         resonanceAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -344,6 +332,8 @@ public:
             processor.parameters, "smartPan", smartPanKnob);
         gateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor.parameters, "noiseGate", gateKnob);
+        vocoderReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+            processor.parameters, "vocoderRelease", vocoderReleaseKnob);
         driveAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
             processor.parameters, "filterDrive", driveKnob);
         delayMixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
@@ -405,7 +395,6 @@ public:
         nextButton.setLookAndFeel(nullptr);
         filterTypeCombo.setLookAndFeel(nullptr);
         filterSlopeCombo.setLookAndFeel(nullptr);
-        noiseTypeCombo.setLookAndFeel(nullptr);
         riserTypeCombo.setLookAndFeel(nullptr);
         autoGainButton.setLookAndFeel(nullptr);
         macroModeCombo.setLookAndFeel(nullptr);
@@ -647,16 +636,18 @@ public:
         auto noiseRow = noiseSection.removeFromTop(90);
         
         // Noise knob and gate
-        auto noiseKnobArea = noiseRow.removeFromLeft(80);
-        layoutKnob(noiseKnob, noiseLabel, noiseKnobArea, knobSize);
+        auto noiseKnobArea = noiseRow.removeFromLeft(65);
+        layoutKnob(noiseKnob, noiseLabel, noiseKnobArea, smallKnobSize);
         
-        auto gateArea = noiseRow.removeFromLeft(80);
-        layoutKnob(gateKnob, gateLabel, gateArea, knobSize);
+        auto gateArea = noiseRow.removeFromLeft(65);
+        layoutKnob(gateKnob, gateLabel, gateArea, smallKnobSize);
         
-        // Noise type dropdown
-        auto noiseTypeArea = noiseSection.reduced(5, 0);
-        noiseTypeLabel.setBounds(noiseTypeArea.removeFromBottom(15));
-        noiseTypeCombo.setBounds(noiseTypeArea);
+        auto vocoderReleaseArea = noiseRow.removeFromLeft(65);
+        layoutKnob(vocoderReleaseKnob, vocoderReleaseLabel, vocoderReleaseArea, smallKnobSize);
+        
+        // Vocoder label
+        auto vocoderArea = noiseSection.reduced(5, 0);
+        vocoderLabel.setBounds(vocoderArea);
         
         // Add spacing between rows
         rightSide.removeFromTop(30);
@@ -793,15 +784,6 @@ private:
         }
     }
     
-    void noiseTypeChanged()
-    {
-        int selectedId = noiseTypeCombo.getSelectedId();
-        if (selectedId > 0)
-        {
-            if (auto* param = processor.parameters.getParameter("noiseType"))
-                param->setValueNotifyingHost((selectedId - 1) / 2.0f);
-        }
-    }
     
     void riserTypeChanged()
     {
@@ -841,20 +823,19 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> riserAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> riserReleaseAttachment;
     
-    juce::ComboBox noiseTypeCombo;
-    juce::Label noiseTypeLabel;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> noiseTypeAttachment;
+    juce::Label vocoderLabel;
     
     juce::ComboBox riserTypeCombo;
     juce::Label riserTypeLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> riserTypeAttachment;
     
     // New controls
-    juce::Slider resonanceKnob, widthKnob, gateKnob, driveKnob, smartPanKnob;
-    juce::Label resonanceLabel, widthLabel, gateLabel, driveLabel, smartPanLabel;
+    juce::Slider resonanceKnob, widthKnob, gateKnob, vocoderReleaseKnob, driveKnob, smartPanKnob;
+    juce::Label resonanceLabel, widthLabel, gateLabel, vocoderReleaseLabel, driveLabel, smartPanLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> resonanceAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> widthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gateAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> vocoderReleaseAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> driveAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> smartPanAttachment;
     

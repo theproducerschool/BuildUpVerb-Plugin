@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(BuildUpVerb VERSION 1.0.0)
+project(BuildUpVerb VERSION 1.1.6)
 
 # Fetch JUCE
 include(FetchContent)
@@ -31,6 +31,10 @@ target_sources(BuildUpVerb PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/FreeverbWrapper.cpp
+    Source/VocoderProcessor.cpp
+    Source/VocoderFilterbank.cpp
+    Source/VocoderSimple.cpp
+    Source/VocoderGated.cpp
     Source/revmodel.cpp
     Source/comb.cpp
     Source/allpass.cpp)

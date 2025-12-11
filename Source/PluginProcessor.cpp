@@ -21,8 +21,23 @@ BuildUpVerbAudioProcessor::BuildUpVerbAudioProcessor()
      : AudioProcessor (BusesProperties()
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-       parameters (*this, nullptr, juce::Identifier ("BuildUpVerb"), createParameterLayout())
+       parameters (*this, nullptr, juce::Identifier ("BuildUpVerb"), createParameterLayout()),
+       forwardFFT (fftOrder),
+       fftData (fftSize * 2),
+       window (fftSize),
+       frequencyData (fftSize / 2 + 1),
+       magnitudes (fftSize / 2 + 1),
+       phases (fftSize / 2 + 1),
+       bandLevels (numBands),
+       smoothedBandLevels (numBands),
+       overlapBuffer (fftSize * 2, 0.0f),  // Stereo overlap buffer
+       prevPhases (fftSize / 2 + 1, 0.0f),
+       inputBuffer (fftSize * 2, 0.0f),    // Stereo input buffer
+       outputBuffer (fftSize * 2, 0.0f)    // Stereo output buffer
 {
+    // Create Hann window
+    for (int i = 0; i < fftSize; ++i)
+        window[i] = 0.5f - 0.5f * std::cos(2.0f * juce::MathConstants<float>::pi * i / (fftSize - 1));
 }
 
 BuildUpVerbAudioProcessor::~BuildUpVerbAudioProcessor()
@@ -63,10 +78,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout BuildUpVerbAudioProcessor::c
                                                              juce::NormalisableRange<float> (0.0f, 100.0f, 0.01f),
                                                              0.0f));
     
-    layout.add (std::make_unique<juce::AudioParameterChoice> ("noiseType",
-                                                              "Noise Type",
-                                                              juce::StringArray {"White", "Pink", "Vinyl"},
-                                                              0));
+    // Removed noise type - now always vocoder
+    
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("vocoderRelease",
+                                                             "Vocoder Release",
+                                                             juce::NormalisableRange<float> (0.0f, 100.0f, 0.01f),
+                                                             50.0f));
     
     layout.add (std::make_unique<juce::AudioParameterFloat> ("tremoloRate",
                                                              "Tremolo Rate",
@@ -263,6 +280,12 @@ void BuildUpVerbAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     delayBufferR.clear();
     delayWritePos = 0;
     
+    // Initialize FFT buffers for vocoder
+    fftInputBuffer.setSize(2, fftSize);
+    fftOutputBuffer.setSize(2, fftSize);
+    fftInputBuffer.clear();
+    fftOutputBuffer.clear();
+    
     updateDSPFromParameters();
 }
 
@@ -292,6 +315,10 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     float buildUp = *parameters.getRawParameterValue ("buildup");
     float buildUpNorm = buildUp / 100.0f;
     
+    // Smooth the build up parameter to prevent clicks
+    const float buildUpSmoothCoeff = 0.995f; // Very smooth
+    smoothedBuildUp = smoothedBuildUp * buildUpSmoothCoeff + buildUpNorm * (1.0f - buildUpSmoothCoeff);
+    
     // Immediate bypass - if Build Up is 0, pass through without ANY processing
     if (buildUpNorm < 0.001f)
     {
@@ -312,7 +339,7 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     float filterIntensity = *parameters.getRawParameterValue ("filterIntensity");
     float reverbMix = *parameters.getRawParameterValue ("reverbMix");
     float noiseAmount = *parameters.getRawParameterValue ("noiseAmount");
-    int noiseType = (int)*parameters.getRawParameterValue ("noiseType");
+    // Noise type removed - always vocoder now
     float tremoloRate = *parameters.getRawParameterValue ("tremoloRate");
     float tremoloDepth = *parameters.getRawParameterValue ("tremoloDepth");
     float riserAmount = *parameters.getRawParameterValue ("riserAmount");
@@ -370,25 +397,8 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     static float smoothEnvelopeGate = 0.0f;
     smoothEnvelopeGate += (envelopeGate - smoothEnvelopeGate) * 0.9f; // Near-instant gate response
     
-    // Create reverb buffer for wet signal processing
-    juce::AudioBuffer<float> reverbBuffer (buffer.getNumChannels(), buffer.getNumSamples());
-    
-    // Copy input to reverb buffer for processing
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-        reverbBuffer.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
-    
-    // Process reverb only if reverb mix > 0
-    if (reverbMixNorm > 0.001f)
-    {
-        juce::dsp::AudioBlock<float> reverbBlock (reverbBuffer);
-        juce::dsp::ProcessContextReplacing<float> reverbContext (reverbBlock);
-        freeverb.process (reverbBuffer);
-    }
-    else
-    {
-        // No reverb, clear the buffer for other effects
-        reverbBuffer.clear();
-    }
+    // NOTE: Reverb buffer creation moved to AFTER noise generation
+    // so reverb can process the vocoded noise properly
     
     // Process intelligent filter automation (controlled by filter intensity)
     if (filterIntensityNorm > 0.01f)
@@ -402,10 +412,10 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         if (driveNorm > 0.01f)
         {
             float driveGain = 1.0f + driveNorm * 4.0f; // Up to 5x gain
-            for (int channel = 0; channel < reverbBuffer.getNumChannels(); ++channel)
+            for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
             {
-                auto* data = reverbBuffer.getWritePointer(channel);
-                for (int sample = 0; sample < reverbBuffer.getNumSamples(); ++sample)
+                auto* data = buffer.getWritePointer(channel);
+                for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
                 {
                     // Soft clip saturation
                     float driven = data[sample] * driveGain;
@@ -419,7 +429,7 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         int numStages = filterSlope + 1;
         
         // Create filter context
-        juce::dsp::AudioBlock<float> filterBlock (reverbBuffer);
+        juce::dsp::AudioBlock<float> filterBlock (buffer);
         juce::dsp::ProcessContextReplacing<float> filterContext (filterBlock);
         
         if (filterType == 2) // Band Pass - use dual-filter automation
@@ -452,64 +462,24 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         }
     }
     
-    // Add noise generator with filtering - linked to Build Up
+    // True FFT Vocoder - linked to Build Up
     if (noiseAmountNorm > 0.01f && buildUpNorm > 0.01f)
     {
-        // Noise level based on build up AND noise amount
-        float targetNoiseLevel = buildUpNorm * noiseAmountNorm * 0.05f; // Max 5% noise
+        // Vocoder gain based on build up AND noise amount
+        // Use raw buildUpNorm instead of smoothedBuildUp to prevent modulation
+        float vocoderGain = buildUpNorm * noiseAmountNorm;
+        float vocoderReleaseAmount = *parameters.getRawParameterValue ("vocoderRelease") / 100.0f;
         
-        // Create temporary buffer for noise to allow filtering
+        // Create buffer for vocoder output
         juce::AudioBuffer<float> noiseBuffer(buffer.getNumChannels(), buffer.getNumSamples());
         noiseBuffer.clear();
         
-        for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
-        {
-            auto* noiseData = noiseBuffer.getWritePointer(channel);
-            
-            for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
-            {
-                // Use exponential smoothing for click-free noise level changes
-                const float smoothingCoeff = 0.99f; // Higher = smoother but slower response
-                currentNoiseLevel = currentNoiseLevel * smoothingCoeff + targetNoiseLevel * (1.0f - smoothingCoeff);
-                
-                // Additional smoothing layer for very smooth transitions
-                const float extraSmoothingCoeff = 0.995f;
-                smoothedNoiseLevel = smoothedNoiseLevel * extraSmoothingCoeff + currentNoiseLevel * (1.0f - extraSmoothingCoeff);
-                
-                float noise = 0.0f;
-                
-                // Apply intelligent noise gate based on input signal
-                float gateValue = smoothEnvelopeGate;
-                
-                switch (noiseType)
-                {
-                    case 0: // White noise
-                        noise = (random.nextFloat() * 2.0f - 1.0f) * smoothedNoiseLevel;
-                        break;
-                        
-                    case 1: // Pink noise
-                    {
-                        float white = random.nextFloat() * 2.0f - 1.0f;
-                        pinkNoiseState[0] = 0.99886f * pinkNoiseState[0] + white * 0.0555179f;
-                        pinkNoiseState[1] = 0.99332f * pinkNoiseState[1] + white * 0.0750759f;
-                        pinkNoiseState[2] = 0.96900f * pinkNoiseState[2] + white * 0.1538520f;
-                        float pink = pinkNoiseState[0] + pinkNoiseState[1] + pinkNoiseState[2] + white * 0.5362f;
-                        noise = pink * smoothedNoiseLevel * 0.11f; // Compensate for gain
-                        break;
-                    }
-                        
-                    case 2: // Vinyl crackle
-                        if (random.nextFloat() < 0.02f) // Sparse crackles
-                            noise = (random.nextFloat() * 2.0f - 1.0f) * smoothedNoiseLevel * 3.0f;
-                        else
-                            noise = (random.nextFloat() * 2.0f - 1.0f) * smoothedNoiseLevel * 0.3f;
-                        break;
-                }
-                
-                noiseData[sample] = noise; // Write to noise buffer (no gating)
-            }
-        }
+        // Process vocoder - use simple envelope follower since it's cleanest
+        processVocoderSimple(buffer, noiseBuffer, vocoderGain, vocoderReleaseAmount);
         
+        // BYPASS FILTERING FOR NOW TO TEST IF THIS IS THE ISSUE
+        // The filters might be causing the ringing with high resonance
+        /*
         // Apply filtering to noise based on Build Up position
         if (filterIntensityNorm > 0.01f && buildUpNorm > 0.01f)
         {
@@ -530,6 +500,8 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 lowPassFilter.process(noiseContext);
             }
         }
+        */
+        
         
         // Mix filtered noise into main buffer
         for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
@@ -545,19 +517,30 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
     }
     else
     {
-        // Smoothly fade out noise when Build Up or Noise Amount is zero
-        if (currentNoiseLevel > 0.0f || smoothedNoiseLevel > 0.0f)
-        {
-            // Use exponential smoothing for fade out too
-            const float fadeOutCoeff = 0.95f;
-            currentNoiseLevel *= fadeOutCoeff;
-            smoothedNoiseLevel *= fadeOutCoeff;
-            
-            if (currentNoiseLevel < 0.0001f)
-                currentNoiseLevel = 0.0f;
-            if (smoothedNoiseLevel < 0.0001f)
-                smoothedNoiseLevel = 0.0f;
-        }
+        // Reset vocoder band levels when build up is off
+        std::fill(smoothedBandLevels.begin(), smoothedBandLevels.end(), 0.0f);
+        fftPos = 0;
+    }
+    
+    // NOW process reverb AFTER noise has been added to the main buffer
+    // This ensures reverb processes the vocoded noise with proper release
+    juce::AudioBuffer<float> reverbBuffer (buffer.getNumChannels(), buffer.getNumSamples());
+    
+    // Copy current buffer (including noise) to reverb buffer for processing
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        reverbBuffer.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
+    
+    // Process reverb only if reverb mix > 0
+    if (reverbMixNorm > 0.001f)
+    {
+        juce::dsp::AudioBlock<float> reverbBlock (reverbBuffer);
+        juce::dsp::ProcessContextReplacing<float> reverbContext (reverbBlock);
+        freeverb.process (reverbBuffer);
+    }
+    else
+    {
+        // No reverb, clear the buffer
+        reverbBuffer.clear();
     }
     
     // Add riser effect with intelligent envelope
@@ -603,11 +586,11 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 // Smooth frequency response to prevent artifacts
                 riserFreq += (targetFreq - riserFreq) * 0.001f; // Much smoother
                 
-                for (int channel = 0; channel < reverbBuffer.getNumChannels(); ++channel)
+                for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
                 {
-                    auto* data = reverbBuffer.getWritePointer (channel);
+                    auto* data = buffer.getWritePointer (channel);
                     
-                    for (int sample = 0; sample < reverbBuffer.getNumSamples(); ++sample)
+                    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
                     {
                         float riserSample = std::sin(2.0f * juce::MathConstants<float>::pi * riserPhase) * riserLevel;
                         data[sample] += riserSample;
@@ -630,11 +613,11 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 // Smooth frequency response to prevent artifacts
                 smoothSawFreq += (targetFreq - smoothSawFreq) * 0.001f;
                 
-                for (int channel = 0; channel < reverbBuffer.getNumChannels(); ++channel)
+                for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
                 {
-                    auto* data = reverbBuffer.getWritePointer (channel);
+                    auto* data = buffer.getWritePointer (channel);
                     
-                    for (int sample = 0; sample < reverbBuffer.getNumSamples(); ++sample)
+                    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
                     {
                         // Generate saw wave
                         float sawSample = (2.0f * sawPhase - 1.0f) * riserLevel;
@@ -658,11 +641,11 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 
                 // Use member phase for square wave
                 
-                for (int channel = 0; channel < reverbBuffer.getNumChannels(); ++channel)
+                for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
                 {
-                    auto* data = reverbBuffer.getWritePointer (channel);
+                    auto* data = buffer.getWritePointer (channel);
                     
-                    for (int sample = 0; sample < reverbBuffer.getNumSamples(); ++sample)
+                    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
                     {
                         float squareSample = (std::sin(2.0f * juce::MathConstants<float>::pi * squarePhase) > 0.0f ? 1.0f : -1.0f) * riserLevel * 0.7f;
                         data[sample] += squareSample;
@@ -685,7 +668,7 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 noiseFilter.setResonance(2.0f + buildUpNorm * 3.0f); // Higher resonance as it builds
                 
                 // Generate filtered noise
-                juce::AudioBuffer<float> noiseBuffer(reverbBuffer.getNumChannels(), reverbBuffer.getNumSamples());
+                juce::AudioBuffer<float> noiseBuffer(buffer.getNumChannels(), buffer.getNumSamples());
                 
                 for (int channel = 0; channel < noiseBuffer.getNumChannels(); ++channel)
                 {
@@ -702,9 +685,9 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 noiseFilter.process(noiseContext);
                 
                 // Add to reverb buffer
-                for (int channel = 0; channel < reverbBuffer.getNumChannels(); ++channel)
+                for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
                 {
-                    reverbBuffer.addFrom(channel, 0, noiseBuffer, channel, 0, reverbBuffer.getNumSamples());
+                    buffer.addFrom(channel, 0, noiseBuffer, channel, 0, buffer.getNumSamples());
                 }
                 break;
             }
@@ -721,11 +704,11 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
                 
                 // Use member phase for sub drop
                 
-                for (int channel = 0; channel < reverbBuffer.getNumChannels(); ++channel)
+                for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
                 {
-                    auto* data = reverbBuffer.getWritePointer (channel);
+                    auto* data = buffer.getWritePointer (channel);
                     
-                    for (int sample = 0; sample < reverbBuffer.getNumSamples(); ++sample)
+                    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
                     {
                         float subSample = std::sin(2.0f * juce::MathConstants<float>::pi * subPhase) * riserLevel * 1.5f;
                         data[sample] += subSample;
@@ -978,13 +961,13 @@ void BuildUpVerbAudioProcessor::updateDSPFromParameters()
     float buildUpNorm = buildUp / 100.0f;
     float filterIntensityNorm = filterIntensity / 100.0f;
     
-    // Update Freeverb parameters based on build up
+    // Update Freeverb parameters based on SMOOTHED build up to prevent clicks
     // Freeverb has different parameter ranges than JUCE reverb
-    freeverb.setRoomSize(0.3f + (buildUpNorm * 0.65f));      // 0.3 to 0.95 (Freeverb sounds best 0.0-1.0)
-    freeverb.setDamping(0.7f - (buildUpNorm * 0.5f));        // 0.7 to 0.2 (less damping = brighter)
-    freeverb.setWetLevel(0.3f + (buildUpNorm * 0.5f));       // 0.3 to 0.8 - balanced wet level
+    freeverb.setRoomSize(0.3f + (smoothedBuildUp * 0.65f));      // 0.3 to 0.95 (Freeverb sounds best 0.0-1.0)
+    freeverb.setDamping(0.7f - (smoothedBuildUp * 0.5f));        // 0.7 to 0.2 (less damping = brighter)
+    freeverb.setWetLevel(0.3f + (smoothedBuildUp * 0.5f));       // 0.3 to 0.8 - balanced wet level
     freeverb.setDryLevel(0.0f);                               // 0% dry - we add dry signal separately
-    freeverb.setWidth(0.5f + (buildUpNorm * 0.5f));          // 0.5 to 1.0
+    freeverb.setWidth(0.5f + (smoothedBuildUp * 0.5f));          // 0.5 to 1.0
     freeverb.setFreezeMode(0.0f);                            // No freeze
     
     // Simple linear filter automation for high/low pass, logarithmic only for bandpass
