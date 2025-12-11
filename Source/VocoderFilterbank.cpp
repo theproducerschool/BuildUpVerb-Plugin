@@ -98,9 +98,9 @@ void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float
     const int numChannels = buffer.getNumChannels();
     const float sampleRate = getSampleRate();
     
-    // 4 bands like Ableton
-    const float centerFreqs[4] = {400.0f, 1200.0f, 3600.0f, 10800.0f};
-    const float bandwidths[4] = {1.5f, 1.5f, 1.5f, 1.5f}; // Q values
+    // 4 bands - High-mids + crispy highs
+    const float centerFreqs[4] = {1500.0f, 3000.0f, 6000.0f, 12000.0f};
+    const float bandwidths[4] = {1.2f, 1.0f, 0.8f, 0.8f}; // Wider low bands for body
     
     // Static filters and envelopes (should be member variables in real implementation)
     static juce::dsp::StateVariableTPTFilter<float> analysisBands[2][4]; // Stereo
@@ -130,7 +130,7 @@ void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float
                 synthesisBands[ch][i].prepare(spec);
                 synthesisBands[ch][i].setType(juce::dsp::StateVariableTPTFilterType::bandpass);
                 synthesisBands[ch][i].setCutoffFrequency(centerFreqs[i]);
-                synthesisBands[ch][i].setResonance(bandwidths[i]);
+                synthesisBands[ch][i].setResonance(bandwidths[i] * 0.7f); // Lower Q for wider bands
                 
                 envelopes[ch][i].setSampleRate(sampleRate);
                 envelopes[ch][i].setAttackMs(0.5f);
@@ -175,6 +175,17 @@ void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float
             // Generate ONE smooth noise source
             float noise = noiseGen[channel].process(random);
             
+            // MOSTLY raw white noise (90% mix) for maximum brightness
+            float rawNoise = (random.nextFloat() - 0.5f) * 2.0f;
+            
+            // Gentler high-pass to keep some body
+            static float hpState[2] = {0.0f, 0.0f};
+            float hpCutoff = 0.15f; // Less aggressive high-pass
+            hpState[channel] += (rawNoise - hpState[channel]) * hpCutoff;
+            float highpassedNoise = rawNoise - hpState[channel];
+            
+            noise = noise * 0.2f + highpassedNoise * 0.8f; // 80% high-passed
+            
             // Filter the SAME noise through all synthesis bands and modulate
             float output = 0.0f;
             for (int band = 0; band < 4; ++band)
@@ -183,13 +194,31 @@ void BuildUpVerbAudioProcessor::processVocoderFilterbank(juce::AudioBuffer<float
                 float filteredNoise = synthesisBands[channel][band].processSample(0, noise);
                 
                 // Modulate filtered noise with the envelope from analysis
-                output += filteredNoise * bandEnvelopes[band] * 2.0f;
+                // High-mids body + crispy highs
+                float bandGain = 1.0f;
+                if (band == 0) bandGain = 2.0f;   // Good body at 1.5kHz
+                if (band == 1) bandGain = 3.0f;   // More body at 3kHz  
+                if (band == 2) bandGain = 6.0f;   // Strong 6kHz presence
+                if (band == 3) bandGain = 12.0f;  // Still massive highs at 12kHz
+                output += filteredNoise * bandEnvelopes[band] * bandGain;
             }
             
             // Apply overall gain and extra output smoothing
             const float smoothCoeff = 0.95f; // Adjust for more/less smoothing
             outputSmooth[channel] += (output - outputSmooth[channel]) * (1.0f - smoothCoeff);
-            outputData[sample] = outputSmooth[channel] * vocoderGain;
+            // Multiple high-frequency emphasis stages
+            static float highShelf1[2] = {0.0f, 0.0f};
+            static float highShelf2[2] = {0.0f, 0.0f};
+            
+            // First emphasis stage
+            float brightened = outputSmooth[channel] + (outputSmooth[channel] - highShelf1[channel]) * 1.0f;
+            highShelf1[channel] = outputSmooth[channel];
+            
+            // Second emphasis stage for EXTREME brightness
+            float superBright = brightened + (brightened - highShelf2[channel]) * 0.8f;
+            highShelf2[channel] = brightened;
+            
+            outputData[sample] = superBright * vocoderGain * 2.0f;
         }
     }
 }

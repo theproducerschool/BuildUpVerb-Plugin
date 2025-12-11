@@ -474,8 +474,8 @@ void BuildUpVerbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         juce::AudioBuffer<float> noiseBuffer(buffer.getNumChannels(), buffer.getNumSamples());
         noiseBuffer.clear();
         
-        // Process vocoder - use simple envelope follower since it's cleanest
-        processVocoderSimple(buffer, noiseBuffer, vocoderGain, vocoderReleaseAmount);
+        // Process vocoder - use filterbank for 4-band like Ableton
+        processVocoderFilterbank(buffer, noiseBuffer, vocoderGain, vocoderReleaseAmount);
         
         // BYPASS FILTERING FOR NOW TO TEST IF THIS IS THE ISSUE
         // The filters might be causing the ringing with high resonance

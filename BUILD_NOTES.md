@@ -1,14 +1,14 @@
 # BuildUp Reverb - Build Notes
 
-## Current Version: 1.2.4
+## Current Version: 1.3.1
 **Date**: December 11, 2024
 
 ### Recent Changes
-- Confirmed: Constant white noise has NO ringing - signal chain is clean!
-- Ringing is coming from vocoder algorithm itself
-- Switched to VocoderSimple with smoother coefficients
-- Attack: 0.01f (was 0.1f), Release: 0.0001f base
-- Re-enabled reverb and gain compensation
+- Added body in high-mids while keeping crispy highs
+- Bands: 1.5kHz, 3kHz, 6kHz, 12kHz (better balance)
+- 80% high-passed noise (was 90%) for more body
+- Gains: 2x, 3x, 6x, 12x (progressive boost)
+- Wider bands in low-mids for fuller sound
 
 ### Known Issues
 - Persistent "fast LFO/ringing" artifact even with constant noise output
@@ -23,6 +23,54 @@
 5. Install AU: `cp -R BuildUpVerb_artefacts/Release/AU/BuildUp\ Reverb.component ~/Library/Audio/Plug-Ins/Components/`
 
 ### Version History
+
+#### v1.3.1 (2024-12-11)
+- User: "highs are good, noise needs body in high-mids"
+- Shifted bands down slightly for body
+- Less aggressive high-pass filtering
+- Better gain distribution across bands
+- Maintains crispness while adding fullness
+
+#### v1.3.0 (2024-12-11)
+- "Still not bright enough" - going EXTREME
+- Focused entirely on presence/crisp high end
+- High-pass filtered noise carrier
+- Massive 16kHz boost (15x)
+- Double emphasis filter stages
+
+#### v1.2.9 (2024-12-11)
+- Extreme brightness adjustments per user request
+- "Really high focused" sound achieved
+- Shifted frequency bands up significantly
+- Heavy high-frequency boosting (8x on 14kHz band)
+- High-shelf emphasis filter added
+
+#### v1.2.8 (2024-12-11)
+- Brightened 4-band vocoder output
+- High frequency bands (3.6kHz, 10.8kHz) boosted
+- Added white noise mix for presence
+- Wider filter bandwidths
+- User reported output was too muffled/low
+
+#### v1.2.7 (2024-12-11)
+- Switching to VocoderFilterbank.cpp implementation
+- Already has proper filter initialization
+- 4 bandpass filters with envelope followers
+- Single noise source filtered through 4 bands
+- More stable than previous FFT approach
+
+#### v1.2.6 (2024-12-11)
+- Reverted to simple vocoder after 4-band had no output
+- Filter initialization was problematic
+- Back to working single envelope follower
+- Need different approach for multi-band
+
+#### v1.2.5 (2024-12-11)
+- Upgraded from simple envelope follower to 4-band vocoder
+- Each frequency band tracked independently
+- More characteristic vocoder sound like Ableton
+- Bandpass filters with appropriate Q values
+- Should give better frequency separation
 
 #### v1.2.4 (2024-12-11)
 - Found ringing source: vocoder envelope follower coefficients

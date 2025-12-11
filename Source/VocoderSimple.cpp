@@ -1,6 +1,7 @@
-// VocoderSimple.cpp - Simplified vocoder for debugging
+// VocoderSimple.cpp - 4-band vocoder like Ableton
 
 #include "PluginProcessor.h"
+#include <juce_dsp/juce_dsp.h>
 #include <cmath>
 
 void BuildUpVerbAudioProcessor::processVocoderSimple(juce::AudioBuffer<float>& buffer, 
